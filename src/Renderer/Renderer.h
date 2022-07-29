@@ -1,4 +1,5 @@
 #pragma once
+#include "Model.h"
 
 namespace renderer
 {
@@ -16,5 +17,9 @@ namespace renderer
         const uint32_t m_height;
         SDL_Window* m_sdlWindow;
         SDL_Renderer* m_sdlRenderer;
+        Model m_headModel;
+
+        void Draw();
+        void DrawWireframe(const Model& model);
     };
 }
