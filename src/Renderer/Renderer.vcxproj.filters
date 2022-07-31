@@ -6,12 +6,14 @@
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Utilities.cpp" />
     <ClCompile Include="Model.cpp" />
+    <ClCompile Include="Entity.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Utilities.h" />
     <ClInclude Include="Model.h" />
+    <ClInclude Include="Entity.h" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="Assets\head.obj" />

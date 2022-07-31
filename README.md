@@ -11,6 +11,8 @@ Currently reached the end of lesson 1:
 
 ```powershell
 .\vcpkg.exe install sdl2 --triplet=x64-windows
+.\vcpkg.exe install eigen3 --triplet=x64-windows
+.\vcpkg.exe install spdlog --triplet=x64-windows
 ```
 
 # Future learning sources
