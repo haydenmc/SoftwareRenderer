@@ -3,11 +3,70 @@
 
 namespace
 {
+    constexpr double c_zNear{ 0.1 };
+    constexpr double c_zFar{ 1000.0 };
     constexpr std::array<uint8_t, 4> c_clearColor{ 0, 0, 0, 0 };
     constexpr std::array<uint8_t, 4> c_wireFrameColor{ 255, 255, 255, 255 };
+
+    Eigen::Matrix4d GetEntityTRSMatrix(const Renderer::Entity& entity)
+    {
+        // Translation
+        const auto& entityPosition{ entity.Position() };
+        Eigen::Matrix4d entityWorldTranslate{
+            { 1., 0., 0., entityPosition.x() },
+            { 0., 1., 0., entityPosition.y() },
+            { 0., 0., 1., entityPosition.z() },
+            { 0., 0., 0., 1. },
+        };
+
+        // Rotation
+        const auto& entityRotation{ entity.Rotation() };
+        Eigen::Matrix4d entityWorldRotateX{
+            { 1., 0., 0., 0. },
+            { 0., std::cos(entityRotation.x()), -std::sin(entityRotation.x()), 0. },
+            { 0., std::sin(entityRotation.x()), std::cos(entityRotation.x()), 0. },
+            { 0., 0., 0., 1. },
+        };
+        Eigen::Matrix4d entityWorldRotateY{
+            { std::cos(entityRotation.y()), 0., std::sin(entityRotation.y()), 0. },
+            { 0., 1., 0., 0. },
+            { -std::sin(entityRotation.y()), 0., std::cos(entityRotation.y()), 0. },
+            { 0., 0., 0., 1. },
+        };
+        Eigen::Matrix4d entityWorldRotateZ{
+            { std::cos(entityRotation.z()), -std::sin(entityRotation.z()), 0., 0. },
+            { std::sin(entityRotation.z()), std::cos(entityRotation.z()), 0., 0. },
+            { 0., 0., 1., 0. },
+            { 0., 0., 0., 1. },
+        };
+        Eigen::Matrix4d entityWorldRotate{
+            entityWorldRotateZ *
+            entityWorldRotateY *
+            entityWorldRotateX
+        };
+
+        // TODO: Scale
+
+        return entityWorldTranslate * entityWorldRotate;
+    }
+
+    Eigen::Matrix4d GetPerspectiveTransformMatrix(
+        double fieldOfView,
+        double aspectRatio,
+        double zNear,
+        double zFar
+    )
+    {
+        return Eigen::Matrix4d{
+            { (aspectRatio * (1 / std::tan(fieldOfView / 2))), 0, 0, 0 },
+            { 0, (1 / std::tan(fieldOfView / 2)), 0, 0},
+            { 0, 0, (zFar / (zFar - zNear)), ((-zFar * zNear) / (zFar - zNear)) },
+            { 0, 0, 1, 0 },
+        };
+    }
 }
 
-namespace renderer
+namespace Renderer
 {
     Renderer::Renderer(
         uint32_t width,
@@ -20,11 +79,7 @@ namespace renderer
         m_timePerFrame{ m_framesPerSecondLimit == 0 ? std::chrono::seconds{ 0 } :
             (std::chrono::nanoseconds{ std::chrono::seconds{ 1 } } / m_framesPerSecondLimit) },
         m_sdlWindow{ nullptr },
-        m_sdlRenderer{ nullptr },
-        m_camera{
-            { -100.0, 0.0, 16.0 },
-            {    0.0, 0.0,  0.0 }
-        }
+        m_sdlRenderer{ nullptr }
     {
         spdlog::info(
             "Creating render window ({}x{}) @ {}fps...",
@@ -49,45 +104,42 @@ namespace renderer
         ));
     }
 
-    void Renderer::Run()
+    void Renderer::Draw(
+        const std::chrono::high_resolution_clock::time_point& timePoint,
+        const Entity& camera,
+        const std::vector<Entity>& worldEntities
+    )
     {
-        std::chrono::high_resolution_clock::time_point lastFrameTime{
-            std::chrono::high_resolution_clock::now() };
-        std::chrono::high_resolution_clock::time_point lastUpdateTime{
-            std::chrono::high_resolution_clock::now() };
+        auto currentTime = std::chrono::high_resolution_clock::now();
 
-        SDL_Event event{ 0 };
-        do
+        if (m_framesPerSecondLimit == 0)
         {
-            auto currentTime = std::chrono::high_resolution_clock::now();
-            auto updateDelta{ currentTime - lastUpdateTime };
-            Update(updateDelta);
-            lastUpdateTime = currentTime;
-
-            if (m_framesPerSecondLimit == 0)
-            {
-                Draw();
-                lastFrameTime = currentTime;
-            }
-            else
-            {
-                if ((currentTime - lastFrameTime) >= m_timePerFrame)
-                {
-                    Draw();
-                    lastFrameTime = currentTime;
-                }
-            }
-            
-            CheckSdlError(SDL_PollEvent(&event));
+            DrawInternal(
+                timePoint,
+                camera,
+                worldEntities
+            );
+            m_lastFrameTime = currentTime;
         }
-        while (event.type != SDL_QUIT);
+        else
+        {
+            if ((currentTime - m_lastFrameTime) >= m_timePerFrame)
+            {
+                DrawInternal(
+                    timePoint,
+                    camera,
+                    worldEntities
+                );
+                m_lastFrameTime = currentTime;
+            }
+        }
     }
 
-    void Renderer::Update(std::chrono::high_resolution_clock::duration /*deltaTime*/)
-    {
-    }
-
-    void Renderer::Draw()
+    void Renderer::DrawInternal(
+        const std::chrono::high_resolution_clock::time_point& timePoint,
+        const Entity& /*camera*/,
+        const std::vector<Entity>& worldEntities
+    )
     {
         CheckSdlError(SDL_SetRenderDrawColor(
             m_sdlRenderer,
@@ -97,15 +149,6 @@ namespace renderer
             c_clearColor[3]
         ));
         CheckSdlError(SDL_RenderClear(m_sdlRenderer));
-
-        // Translate world entity coords to camera coords
-        // then draw wireframes
-
-        SDL_RenderPresent(m_sdlRenderer);
-    }
-
-    void Renderer::DrawWireframe(const Model& model)
-    {
         CheckSdlError(SDL_SetRenderDrawColor(
             m_sdlRenderer,
             c_wireFrameColor[0],
@@ -113,19 +156,25 @@ namespace renderer
             c_wireFrameColor[2],
             c_wireFrameColor[3]
         ));
-        
-        for (const auto& face : model.Faces())
+
+        for (const auto& entity : worldEntities)
         {
-            for (int j = 0; j < 3; j++)
+            // Get new vertex positions
+            if (entity.Model())
             {
-                const auto& v0{ model.Vertices().at(face[j]) };
-                const auto& v1{ model.Vertices().at(face[(j + 1) % 3]) };
-                const auto& x0{ static_cast<int>((v0[0] + 1.) * m_width / 2.) };
-                auto y0{ static_cast<int>((v0[1] + 1.) * m_height / 2.) };
-                auto x1{ static_cast<int>((v1[0] + 1.) * m_width / 2.) };
-                auto y1{ static_cast<int>((v1[1] + 1.) * m_height / 2.) };
-                SDL_RenderDrawLine(m_sdlRenderer, x0, y0, x1, y1);
+                auto worldTransformationMatrix{ GetEntityTRSMatrix(entity) };
+                const auto& entityModel{ entity.Model().value() };
+                for (const auto& vertex : entityModel.Vertices())
+                {
+                    auto transformationResult{
+                        worldTransformationMatrix *
+                        Eigen::Vector4d{ vertex.x(), vertex.y(), vertex.z(), 1 }
+                    };
+                    SDL_RenderDrawPoint(m_sdlRenderer, transformationResult.x() * 100, transformationResult.y() * 100);
+                }
             }
         }
+
+        SDL_RenderPresent(m_sdlRenderer);
     }
 }

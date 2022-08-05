@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Renderer.h"
+#include "Simulation.h"
 #include <spdlog/sinks/msvc_sink.h>
 
 namespace
@@ -28,13 +29,15 @@ int wWinMain(
     SetupLogging();
     spdlog::info("WinMain");
     spdlog::info("Initializing renderer.");
-    renderer::Renderer renderer{
+    auto renderer{ std::make_shared<Renderer::Renderer>(
         c_windowWidth,
         c_windowHeight,
         c_framesPerSecondLimit
-    };
+    ) };
+    spdlog::info("Initializing simulation.");
+    Renderer::Simulation sim{ renderer };
     spdlog::info("Starting simulation.");
-    renderer.Run();
+    sim.Run();
     spdlog::info("Simulation stopped.");
     return 0;
 }

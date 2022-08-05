@@ -1,7 +1,7 @@
 #pragma once
 #include "Entity.h"
 
-namespace renderer
+namespace Renderer
 {
     struct Renderer
     {
@@ -11,7 +11,11 @@ namespace renderer
             uint16_t framesPerSecondLimit = 0
         );
 
-        void Run();
+        void Draw(
+            const std::chrono::high_resolution_clock::time_point& timePoint,
+            const Entity& camera,
+            const std::vector<Entity>& worldEntities
+        );
 
     private:
         const uint32_t m_width;
@@ -20,11 +24,12 @@ namespace renderer
         const std::chrono::high_resolution_clock::duration m_timePerFrame;
         SDL_Window* m_sdlWindow;
         SDL_Renderer* m_sdlRenderer;
-        Entity m_camera;
-        std::vector<Entity> m_worldEntities;
+        std::chrono::high_resolution_clock::time_point m_lastFrameTime;
 
-        void Update(std::chrono::high_resolution_clock::duration deltaTime);
-        void Draw();
-        void DrawWireframe(const Model& model);
+        void DrawInternal(
+            const std::chrono::high_resolution_clock::time_point& timePoint,
+            const Entity& camera,
+            const std::vector<Entity>& worldEntities
+        );
     };
 }

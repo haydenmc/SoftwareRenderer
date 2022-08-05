@@ -1,6 +1,6 @@
 #pragma once
 
-namespace renderer
+namespace Renderer
 {
     struct SdlException : public std::runtime_error
     {

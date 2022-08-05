@@ -20,7 +20,7 @@
 #include <SDL2/SDL.h>
 
 // Eigen3
-#pragma warning( suppress: 5054 )
+#pragma warning( suppress: 5054 4127 )
 #include <Eigen/Dense>
 
 // spdlog

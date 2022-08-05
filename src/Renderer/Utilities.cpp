@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "Utilities.h"
 
-namespace renderer
+namespace Renderer
 {
     SdlException::SdlException(const char* message) : std::runtime_error(message)
     { }

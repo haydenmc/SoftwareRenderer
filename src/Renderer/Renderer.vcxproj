@@ -29,6 +29,7 @@
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="Simulation.cpp" />
     <ClCompile Include="Utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -36,14 +37,8 @@
     <ClInclude Include="Model.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="Simulation.h" />
     <ClInclude Include="Utilities.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <CopyFileToFolders Include="Assets\head.obj">
-      <DeploymentContent>true</DeploymentContent>
-      <DestinationFolders>$(OutDir)\Assets</DestinationFolders>
-      <FileType>Document</FileType>
-    </CopyFileToFolders>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <Import Project="$(ProjectDir)\..\Shared.props" />
