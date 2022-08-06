@@ -4,7 +4,7 @@
 namespace
 {
     constexpr double c_zNear{ 0.1 };
-    constexpr double c_zFar{ 1000.0 };
+    constexpr double c_zFar{ 100.0 };
     constexpr std::array<uint8_t, 4> c_clearColor{ 0, 0, 0, 0 };
     constexpr std::array<uint8_t, 4> c_wireFrameColor{ 255, 255, 255, 255 };
 
@@ -58,9 +58,9 @@ namespace
     )
     {
         return Eigen::Matrix4d{
-            { (aspectRatio * (1 / std::tan(fieldOfView / 2))), 0, 0, 0 },
-            { 0, (1 / std::tan(fieldOfView / 2)), 0, 0},
-            { 0, 0, (zFar / (zFar - zNear)), ((-zFar * zNear) / (zFar - zNear)) },
+            { (aspectRatio * (1. / std::tan(fieldOfView / 2.))), 0, 0, 0 },
+            { 0, (1. / std::tan(fieldOfView / 2.)), 0, 0},
+            { 0, 0, (zFar / (zFar - zNear)), (-(zFar / (zFar - zNear)) * zNear) },
             { 0, 0, 1, 0 },
         };
     }
@@ -167,10 +167,24 @@ namespace Renderer
                 for (const auto& vertex : entityModel.Vertices())
                 {
                     auto transformationResult{
+                        GetPerspectiveTransformMatrix(
+                            ((1 / 3.) * std::numbers::pi),
+                            (m_height / static_cast<double>(m_width)),
+                            c_zNear,
+                            c_zFar
+                        ) *
                         worldTransformationMatrix *
                         Eigen::Vector4d{ vertex.x(), vertex.y(), vertex.z(), 1 }
                     };
-                    SDL_RenderDrawPoint(m_sdlRenderer, transformationResult.x() * 100, transformationResult.y() * 100);
+
+                    auto ndcX{ transformationResult.x() / transformationResult.w() };
+                    auto ndcY{ transformationResult.y() / transformationResult.w() };
+                    auto ndcZ{ transformationResult.z() / transformationResult.w() };
+
+                    auto screenX{ (ndcX * m_width) + (m_width / 2.) };
+                    auto screenY{ (ndcY * m_height) + (m_height / 2.) };
+
+                    SDL_RenderDrawPoint(m_sdlRenderer, screenX, screenY);
                 }
             }
         }
