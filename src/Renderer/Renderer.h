@@ -23,13 +23,32 @@ namespace Renderer
         const uint16_t m_framesPerSecondLimit;
         const std::chrono::high_resolution_clock::duration m_timePerFrame;
         SDL_Window* m_sdlWindow;
-        SDL_Renderer* m_sdlRenderer;
+        SDL_Surface* m_sdlWindowSurface;
         std::chrono::high_resolution_clock::time_point m_lastFrameTime;
 
         void DrawInternal(
             const std::chrono::high_resolution_clock::time_point& timePoint,
             const Entity& camera,
             const std::vector<Entity>& worldEntities
+        );
+
+        void DrawEntities(
+            const Entity& camera,
+            const std::vector<Entity>& worldEntities
+        );
+
+        void SetAllPixels(
+            uint8_t r,
+            uint8_t g,
+            uint8_t b
+        );
+
+        void SetPixel(
+            uint32_t x,
+            uint32_t y,
+            uint8_t r,
+            uint8_t g,
+            uint8_t b
         );
     };
 }

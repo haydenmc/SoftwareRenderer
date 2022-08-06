@@ -5,8 +5,7 @@ namespace
 {
     constexpr double c_zNear{ 0.1 };
     constexpr double c_zFar{ 100.0 };
-    constexpr std::array<uint8_t, 4> c_clearColor{ 0, 0, 0, 0 };
-    constexpr std::array<uint8_t, 4> c_wireFrameColor{ 255, 255, 255, 255 };
+    constexpr std::array<uint8_t, 3> c_clearColor{ 0, 0, 0 };
 
     Eigen::Matrix4d GetEntityTRSMatrix(const Renderer::Entity& entity)
     {
@@ -61,7 +60,7 @@ namespace
             { (aspectRatio * (1. / std::tan(fieldOfView / 2.))), 0, 0, 0 },
             { 0, (1. / std::tan(fieldOfView / 2.)), 0, 0},
             { 0, 0, (zFar / (zFar - zNear)), (-(zFar / (zFar - zNear)) * zNear) },
-            { 0, 0, 1, 0 },
+            { 0, 0, -1, 0 },
         };
     }
 }
@@ -79,7 +78,7 @@ namespace Renderer
         m_timePerFrame{ m_framesPerSecondLimit == 0 ? std::chrono::seconds{ 0 } :
             (std::chrono::nanoseconds{ std::chrono::seconds{ 1 } } / m_framesPerSecondLimit) },
         m_sdlWindow{ nullptr },
-        m_sdlRenderer{ nullptr }
+        m_sdlWindowSurface{ nullptr }
     {
         spdlog::info(
             "Creating render window ({}x{}) @ {}fps...",
@@ -88,20 +87,19 @@ namespace Renderer
             m_framesPerSecondLimit
         );
         CheckSdlError(SDL_Init(SDL_INIT_VIDEO));
-        CheckSdlError(SDL_CreateWindowAndRenderer(
+        m_sdlWindow = ThrowIfSdlNull(SDL_CreateWindow(
+            "Simulation",
+            SDL_WINDOWPOS_UNDEFINED,
+            SDL_WINDOWPOS_UNDEFINED,
             m_width,
             m_height,
-            0,
-            &m_sdlWindow,
-            &m_sdlRenderer
-        ));
-        CheckSdlError(SDL_SetRenderDrawColor(
-            m_sdlRenderer,
-            0,
-            0,
-            0,
             0
         ));
+        m_sdlWindowSurface = ThrowIfSdlNull(SDL_GetWindowSurface(m_sdlWindow));
+        if (m_sdlWindowSurface->format->format != SDL_PIXELFORMAT_XRGB8888)
+        {
+            throw SdlException("Window surface has unexpected pixel format");
+        }
     }
 
     void Renderer::Draw(
@@ -137,26 +135,32 @@ namespace Renderer
 
     void Renderer::DrawInternal(
         const std::chrono::high_resolution_clock::time_point& timePoint,
-        const Entity& /*camera*/,
+        const Entity& camera,
         const std::vector<Entity>& worldEntities
     )
     {
-        CheckSdlError(SDL_SetRenderDrawColor(
-            m_sdlRenderer,
-            c_clearColor[0],
-            c_clearColor[1],
-            c_clearColor[2],
-            c_clearColor[3]
-        ));
-        CheckSdlError(SDL_RenderClear(m_sdlRenderer));
-        CheckSdlError(SDL_SetRenderDrawColor(
-            m_sdlRenderer,
-            c_wireFrameColor[0],
-            c_wireFrameColor[1],
-            c_wireFrameColor[2],
-            c_wireFrameColor[3]
-        ));
+        CheckSdlError(SDL_LockSurface(m_sdlWindowSurface));
 
+        SetAllPixels(
+            c_clearColor.at(0),
+            c_clearColor.at(1),
+            c_clearColor.at(2)
+        );
+
+        DrawEntities(
+            camera,
+            worldEntities
+        );
+
+        SDL_UnlockSurface(m_sdlWindowSurface);
+        SDL_UpdateWindowSurface(m_sdlWindow);
+    }
+
+    void Renderer::DrawEntities(
+        const Entity& camera,
+        const std::vector<Entity>& worldEntities
+    )
+    {
         for (const auto& entity : worldEntities)
         {
             // Get new vertex positions
@@ -177,18 +181,65 @@ namespace Renderer
                         Eigen::Vector4d{ vertex.x(), vertex.y(), vertex.z(), 1 }
                     };
 
-                    auto ndcX{ transformationResult.x() / transformationResult.w() };
-                    auto ndcY{ transformationResult.y() / transformationResult.w() };
-                    auto ndcZ{ transformationResult.z() / transformationResult.w() };
+                    double ndcX{ transformationResult.x() };
+                    double ndcY{ transformationResult.y() };
+                    double ndcZ{ transformationResult.z() };
+                    if (transformationResult.w() != 0)
+                    {
+                        ndcX /= transformationResult.w();
+                        ndcY /= transformationResult.w();
+                        ndcZ /= transformationResult.w();
+                    }
 
-                    auto screenX{ (ndcX * m_width) + (m_width / 2.) };
-                    auto screenY{ (ndcY * m_height) + (m_height / 2.) };
+                    auto screenX{ static_cast<uint32_t>((ndcX * m_width) + (m_width / 2.)) };
+                    auto screenY{ static_cast<uint32_t>((ndcY * m_height) + (m_height / 2.)) };
 
-                    SDL_RenderDrawPoint(m_sdlRenderer, screenX, screenY);
+                    if ((screenX <= m_width) && (screenY <= m_height))
+                    {
+                        SetPixel(screenX, screenY, 0xFF, 0xFF, 0xFF);
+                    }
                 }
             }
         }
+    }
 
-        SDL_RenderPresent(m_sdlRenderer);
+    void Renderer::SetAllPixels(uint8_t r, uint8_t g, uint8_t b)
+    {
+        for (uint32_t i = 0; i < (m_sdlWindowSurface->w * m_sdlWindowSurface->h); ++i)
+        {
+            uint32_t y{ i / m_sdlWindowSurface->w };
+            uint32_t x{ i % m_sdlWindowSurface->w };
+            auto const targetPixel{ reinterpret_cast<uint32_t*>(
+                reinterpret_cast<uint8_t*>(m_sdlWindowSurface->pixels) +
+                y * m_sdlWindowSurface->pitch +
+                x * m_sdlWindowSurface->format->BytesPerPixel
+            ) };
+            *targetPixel = (
+                0xFF000000 | // alpha
+                (static_cast<uint32_t>(r) << 16) | // r
+                (static_cast<uint32_t>(g) << 8) | // g
+                static_cast<uint32_t>(b) // b
+            );
+        }
+    }
+
+    void Renderer::SetPixel(uint32_t x, uint32_t y, uint8_t r, uint8_t g, uint8_t b)
+    {
+        if (x > m_sdlWindowSurface->w || y > m_sdlWindowSurface->h)
+        {
+            throw std::invalid_argument("Attempt to set pixel outside of window boundary");
+        }
+
+        auto const targetPixel{ reinterpret_cast<uint32_t*>(
+            reinterpret_cast<uint8_t*>(m_sdlWindowSurface->pixels) +
+            y * m_sdlWindowSurface->pitch +
+            x * m_sdlWindowSurface->format->BytesPerPixel
+        ) };
+        *targetPixel = (
+            0xFF000000 | // alpha
+            (static_cast<uint32_t>(r) << 16) | // r
+            (static_cast<uint32_t>(g) << 8) | // g
+            static_cast<uint32_t>(b) // b
+        );
     }
 }

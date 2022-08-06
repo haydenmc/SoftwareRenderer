@@ -11,27 +11,26 @@ namespace Renderer
     Simulation::Simulation(std::shared_ptr<Renderer> renderer) :
         m_renderer{ renderer }
     {
-        for (int i = -1; i <= 1; ++i)
-        {
-            // Put a simple 1x1x1 cube in the world entities
-            Model cubeModel{ {
-                {  0.5,  0.5,  0.5 },
-                { -0.5,  0.5,  0.5 },
-                { -0.5, -0.5,  0.5 },
-                {  0.5, -0.5,  0.5 },
-                {  0.5,  0.5, -0.5 },
-                { -0.5,  0.5, -0.5 },
-                { -0.5, -0.5, -0.5 },
-                {  0.5, -0.5, -0.5 },
-            } };
-            Entity cubeEntity{
-                std::move(cubeModel),
-                { i * 2.0, 0.0, 10.0 + (i * 2.) }, // Position
-                { 0.0, 0.0, 0.0 }, // Rotation
-                { 1.0, 1.0, 1.0 }, // Scale
-            };
-            m_worldEntities.push_back(std::move(cubeEntity));
-        }
+        // Put a simple triangle in the world entities
+        Model triangleModel{
+            // Vertices
+            {
+                {  0.0,   0.5,  0.0 },
+                { -0.5,  -0.5,  0.0 },
+                {  0.5,  -0.5,  0.0 },
+            },
+            // Faces by index
+            {
+                { 0, 1, 2 }
+            }
+        };
+        Entity testEntity{
+            std::move(triangleModel),
+            { 0.0, 0.0, 6.0 }, // Position
+            { 0.0, 0.0, 0.0 }, // Rotation
+            { 1.0, 1.0, 1.0 }, // Scale
+        };
+        m_worldEntities.push_back(std::move(testEntity));
     }
 
     void Simulation::Run()
