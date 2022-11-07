@@ -37,6 +37,10 @@ namespace Renderer
             const std::vector<Entity>& worldEntities
         );
 
+        void DrawModel(
+            const Eigen::Matrix4d& transformMatrix,
+            const Model& model);
+
         void SetAllPixels(
             uint8_t r,
             uint8_t g,

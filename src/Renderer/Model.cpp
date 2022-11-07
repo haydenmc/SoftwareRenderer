@@ -8,7 +8,7 @@ namespace Renderer
         std::vector<Eigen::Vector3i>&& faces
     ) :
         m_vertices{ vertices },
-        m_faces{ faces }
+        m_faceVertices{ faces }
     { }
 
     const std::vector<Eigen::Vector3d>& Model::Vertices() const
@@ -16,8 +16,8 @@ namespace Renderer
         return m_vertices;
     }
 
-    const std::vector<Eigen::Vector3i>& Model::Faces() const
+    const std::vector<Eigen::Vector3i>& Model::FaceVertices() const
     {
-        return m_faces;
+        return m_faceVertices;
     }
 }

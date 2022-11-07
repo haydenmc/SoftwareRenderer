@@ -6,13 +6,13 @@ namespace Renderer
     {
         Model(
             std::vector<Eigen::Vector3d>&& vertices,
-            std::vector<Eigen::Vector3i>&& faces
+            std::vector<Eigen::Vector3i>&& facesByVertexIndices
         );
         const std::vector<Eigen::Vector3d>& Vertices() const;
-        const std::vector<Eigen::Vector3i>& Faces() const;
+        const std::vector<Eigen::Vector3i>& FaceVertices() const;
 
     private:
         const std::vector<Eigen::Vector3d> m_vertices;
-        const std::vector<Eigen::Vector3i> m_faces;
+        const std::vector<Eigen::Vector3i> m_faceVertices;
     };
 }

@@ -134,7 +134,7 @@ namespace Renderer
     }
 
     void Renderer::DrawInternal(
-        const std::chrono::high_resolution_clock::time_point& timePoint,
+        const std::chrono::high_resolution_clock::time_point& /*timePoint*/,
         const Entity& camera,
         const std::vector<Entity>& worldEntities
     )
@@ -157,47 +157,67 @@ namespace Renderer
     }
 
     void Renderer::DrawEntities(
-        const Entity& camera,
+        const Entity& /*camera*/, //TODO
         const std::vector<Entity>& worldEntities
     )
     {
         for (const auto& entity : worldEntities)
         {
-            // Get new vertex positions
             if (entity.Model())
             {
+                // Apply world transform, perspective transform
+                // TODO: camera transform
                 auto worldTransformationMatrix{ GetEntityTRSMatrix(entity) };
-                const auto& entityModel{ entity.Model().value() };
-                for (const auto& vertex : entityModel.Vertices())
+                auto perspectiveTransformMatrix{
+                    GetPerspectiveTransformMatrix(
+                        ((1 / 3.) * std::numbers::pi),
+                        (m_height / static_cast<double>(m_width)),
+                        c_zNear,
+                        c_zFar
+                    )
+                };
+                auto transformMatrix{
+                    perspectiveTransformMatrix *
+                    worldTransformationMatrix
+                };
+                DrawModel(transformMatrix, entity.Model().value());
+            }
+        }
+    }
+
+    void Renderer::DrawModel(
+        const Eigen::Matrix4d& transformMatrix,
+        const Model& model
+    )
+    {
+        const auto& modelVertices{ model.Vertices() };
+        for (const auto& face : model.FaceVertices())
+        {
+            for (const auto& vertexIndex : face)
+            {
+                const auto vertex{ modelVertices.at(vertexIndex) };
+                auto transformationResult{
+                    transformMatrix *
+                    Eigen::Vector4d{ vertex.x(), vertex.y(), vertex.z(), 1 }
+                };
+
+                double ndcX{ transformationResult.x() };
+                double ndcY{ transformationResult.y() };
+                double ndcZ{ transformationResult.z() };
+
+                if (transformationResult.w() != 0)
                 {
-                    auto transformationResult{
-                        GetPerspectiveTransformMatrix(
-                            ((1 / 3.) * std::numbers::pi),
-                            (m_height / static_cast<double>(m_width)),
-                            c_zNear,
-                            c_zFar
-                        ) *
-                        worldTransformationMatrix *
-                        Eigen::Vector4d{ vertex.x(), vertex.y(), vertex.z(), 1 }
-                    };
+                    ndcX /= transformationResult.w();
+                    ndcY /= transformationResult.w();
+                    ndcZ /= transformationResult.w();
+                }
 
-                    double ndcX{ transformationResult.x() };
-                    double ndcY{ transformationResult.y() };
-                    double ndcZ{ transformationResult.z() };
-                    if (transformationResult.w() != 0)
-                    {
-                        ndcX /= transformationResult.w();
-                        ndcY /= transformationResult.w();
-                        ndcZ /= transformationResult.w();
-                    }
+                auto screenX{ static_cast<uint32_t>((ndcX * m_width) + (m_width / 2.)) };
+                auto screenY{ static_cast<uint32_t>((ndcY * m_height) + (m_height / 2.)) };
 
-                    auto screenX{ static_cast<uint32_t>((ndcX * m_width) + (m_width / 2.)) };
-                    auto screenY{ static_cast<uint32_t>((ndcY * m_height) + (m_height / 2.)) };
-
-                    if ((screenX <= m_width) && (screenY <= m_height))
-                    {
-                        SetPixel(screenX, screenY, 0xFF, 0xFF, 0xFF);
-                    }
+                if ((screenX <= m_width) && (screenY <= m_height))
+                {
+                    SetPixel(screenX, screenY, 0xFF, 0xFF, 0xFF);
                 }
             }
         }
@@ -205,7 +225,9 @@ namespace Renderer
 
     void Renderer::SetAllPixels(uint8_t r, uint8_t g, uint8_t b)
     {
-        for (uint32_t i = 0; i < (m_sdlWindowSurface->w * m_sdlWindowSurface->h); ++i)
+        for (uint32_t i = 0;
+            i < static_cast<uint32_t>(m_sdlWindowSurface->w * m_sdlWindowSurface->h);
+            ++i)
         {
             uint32_t y{ i / m_sdlWindowSurface->w };
             uint32_t x{ i % m_sdlWindowSurface->w };
@@ -225,7 +247,8 @@ namespace Renderer
 
     void Renderer::SetPixel(uint32_t x, uint32_t y, uint8_t r, uint8_t g, uint8_t b)
     {
-        if (x > m_sdlWindowSurface->w || y > m_sdlWindowSurface->h)
+        if ((x > static_cast<uint32_t>(m_sdlWindowSurface->w)) ||
+            (y > static_cast<uint32_t>(m_sdlWindowSurface->h)))
         {
             throw std::invalid_argument("Attempt to set pixel outside of window boundary");
         }
