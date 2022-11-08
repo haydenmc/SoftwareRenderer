@@ -260,6 +260,8 @@ namespace Renderer
                 bool inBounds{ true };
                 for (size_t i{ 0 }; i < 3; ++i)
                 {
+                    // Helpful explanation of this algorithm here:
+                    // https://erkaman.github.io/posts/fast_triangle_rasterization.html
                     auto edgeTest{
                         ((screenSpaceVertices.at((i + 1) % 3).x() - screenSpaceVertices.at(i).x()) *
                             (y - screenSpaceVertices.at(i).y())) -
