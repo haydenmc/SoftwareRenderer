@@ -41,6 +41,8 @@ namespace Renderer
             const Eigen::Matrix4d& transformMatrix,
             const Model& model);
 
+        void RasterizeTriangle(const std::array<Eigen::Vector2i, 3>& screenSpaceVertices);
+
         void SetAllPixels(
             uint8_t r,
             uint8_t g,

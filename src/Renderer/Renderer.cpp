@@ -191,6 +191,8 @@ namespace Renderer
     )
     {
         const auto& modelVertices{ model.Vertices() };
+        std::array<Eigen::Vector2i, 3> screenSpaceVertices;
+        size_t screenSpaceIndex{ 0 };
         for (const auto& face : model.FaceVertices())
         {
             for (const auto& vertexIndex : face)
@@ -215,9 +217,65 @@ namespace Renderer
                 auto screenX{ static_cast<uint32_t>((ndcX * m_width) + (m_width / 2.)) };
                 auto screenY{ static_cast<uint32_t>((ndcY * m_height) + (m_height / 2.)) };
 
-                if ((screenX <= m_width) && (screenY <= m_height))
+                screenSpaceVertices[screenSpaceIndex] = { screenX, screenY };
+                ++screenSpaceIndex;
+            }
+        }
+
+        RasterizeTriangle(screenSpaceVertices);
+    }
+
+    void Renderer::RasterizeTriangle(const std::array<Eigen::Vector2i, 3>& screenSpaceVertices)
+    {
+        Eigen::Vector2i minBounds{ screenSpaceVertices.at(0).x(), screenSpaceVertices.at(0).y() };
+        Eigen::Vector2i maxBounds{ screenSpaceVertices.at(0).x(), screenSpaceVertices.at(0).y() };
+        for (const auto& screenCoords : screenSpaceVertices)
+        {
+            if (screenCoords.x() < minBounds.x())
+            {
+                minBounds.x() = screenCoords.x();
+            }
+            if (screenCoords.y() < minBounds.y())
+            {
+                minBounds.y() = screenCoords.y();
+            }
+            if (screenCoords.x() > maxBounds.x())
+            {
+                maxBounds.x() = screenCoords.x();
+            }
+            if (screenCoords.y() > maxBounds.y())
+            {
+                maxBounds.y() = screenCoords.y();
+            }
+        }
+
+        auto edge1{ screenSpaceVertices.at(1) - screenSpaceVertices.at(0) };
+        auto edge2{ screenSpaceVertices.at(2) - screenSpaceVertices.at(1) };
+        auto edge3{ screenSpaceVertices.at(0) - screenSpaceVertices.at(2) };
+
+        for (int y{ minBounds.y() }; y <= maxBounds.y(); ++y)
+        {
+            for (int x{ minBounds.x() }; x <= maxBounds.x(); ++x)
+            {
+                bool inBounds{ true };
+                for (size_t i{ 0 }; i < 3; ++i)
                 {
-                    SetPixel(screenX, screenY, 0xFF, 0xFF, 0xFF);
+                    auto edgeTest{
+                        ((screenSpaceVertices.at((i + 1) % 3).x() - screenSpaceVertices.at(i).x()) *
+                            (y - screenSpaceVertices.at(i).y())) -
+                        ((screenSpaceVertices.at((i + 1) % 3).y() - screenSpaceVertices.at(i).y()) *
+                            (x - screenSpaceVertices.at(i).x()))
+                    };
+                    if (edgeTest < 0)
+                    {
+                        inBounds = false;
+                        break;
+                    }
+                }
+                
+                if (inBounds)
+                {
+                    SetPixel(x, y, 0xFF, 0xFF, 0xFF);
                 }
             }
         }
