@@ -1,13 +1,6 @@
 # Software Renderer
 
-
-# Dependencies
-
-```powershell
-.\vcpkg.exe install sdl2 --triplet=x64-windows
-.\vcpkg.exe install eigen3 --triplet=x64-windows
-.\vcpkg.exe install spdlog --triplet=x64-windows
-```
+Simple software renderer. Work in progress.
 
 # Notes for me
 
